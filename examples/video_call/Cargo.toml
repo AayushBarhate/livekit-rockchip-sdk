@@ -21,6 +21,8 @@ clap = { workspace = true, features = ["derive"] }
 log = { workspace = true }
 env_logger = { workspace = true }
 anyhow = { workspace = true }
+futures = { workspace = true }
+image = "0.24"
 
 nokhwa = { version = "0.10", default-features = false, features = ["output-threaded"] }
 
