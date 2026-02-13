@@ -1,8 +1,8 @@
 # LiveKit Rust SDK - Rockchip RK3588 MPP Integration
 
 <!-- Badges -->
-[![Build LiveKit SDK with Rockchip MPP](https://github.com/user/livekit-rockchip-sdk/actions/workflows/build.yml/badge.svg)](https://github.com/user/livekit-rockchip-sdk/actions/workflows/build.yml)
-[![Check LiveKit SDK Compatibility](https://github.com/user/livekit-rockchip-sdk/actions/workflows/check-upstream.yml/badge.svg)](https://github.com/user/livekit-rockchip-sdk/actions/workflows/check-upstream.yml)
+[![Build LiveKit SDK with Rockchip MPP](https://github.com/AayushBarhate/livekit-rockchip-sdk/actions/workflows/build.yml/badge.svg)](https://github.com/user/livekit-rockchip-sdk/actions/workflows/build.yml)
+[![Check LiveKit SDK Compatibility](https://github.com/AayushBarhate/livekit-rockchip-sdk/actions/workflows/check-upstream.yml/badge.svg)](https://github.com/user/livekit-rockchip-sdk/actions/workflows/check-upstream.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 Patches for [livekit/rust-sdks](https://github.com/livekit/rust-sdks) that enable
@@ -34,7 +34,7 @@ Specifically, the patches:
 |---|---|
 | **Hardware** | RK3588 / RK3588S board (Orange Pi 5, Rock 5B, etc.) |
 | **MPP runtime** | `librockchip_mpp.so` installed (usually via `librockchip-mpp-dev`) |
-| **Pre-built libwebrtc.a** | Must include the MPP codec sources. Build with [webrtc-rockchip-mpp](https://github.com/user/webrtc-rockchip-mpp). |
+| **Pre-built libwebrtc.a** | Must include the MPP codec sources. Build with [webrtc-rockchip-mpp](https://github.com/AayushBarhate/webrtc-rockchip-mpp). |
 | **LiveKit rust-sdks** | Source checkout, tested against commit `9e635aa6` |
 | **Rust** | 1.78+ (lockfile v4 support) |
 | **C++ toolchain** | GCC/G++ with C++20 support for aarch64 |
@@ -109,7 +109,7 @@ InternalFactory
 
 The Rockchip factories are compiled from the MPP codec sources that live inside
 the custom `libwebrtc.a` (built by the
-[webrtc-rockchip-mpp](https://github.com/user/webrtc-rockchip-mpp) project).
+[webrtc-rockchip-mpp](https://github.com/AayushBarhate/webrtc-rockchip-mpp) project).
 The patches here simply tell LiveKit's build system to link the MPP library and
 register the factories.
 
@@ -142,7 +142,7 @@ livekit-rockchip-sdk/
 
 ## Related Projects
 
-- [webrtc-rockchip-mpp](https://github.com/user/webrtc-rockchip-mpp) -- Builds
+- [webrtc-rockchip-mpp](https://github.com/AayushBarhate/webrtc-rockchip-mpp) -- Builds
   `libwebrtc.a` with Rockchip MPP codec support.
 - [livekit/rust-sdks](https://github.com/livekit/rust-sdks) -- The upstream
   LiveKit Rust SDK that these patches target.
