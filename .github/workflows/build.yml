@@ -21,7 +21,10 @@ on:
         options:
           - basic_room
           - all
-
+          
+permissions:
+  contents: write
+  
 env:
   WEBRTC_REPO: "AayushBarhate/webrtc-rockchip-mpp"
 
