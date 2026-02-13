@@ -13,10 +13,17 @@ on:
         required: false
         default: "9e635aa6"
         type: string
+      build_examples:
+        description: "Which example binaries to build"
+        required: false
+        default: "basic_room"
+        type: choice
+        options:
+          - basic_room
+          - all
 
 env:
   WEBRTC_REPO: "AayushBarhate/webrtc-rockchip-mpp"
-  RUST_VERSION: "stable"
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────
@@ -27,7 +34,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.resolve.outputs.tag }}
-      asset_url: ${{ steps.resolve.outputs.asset_url }}
 
     steps:
       - name: Resolve libwebrtc release
@@ -50,19 +56,18 @@ jobs:
             echo "Latest release: $TAG"
           fi
 
-          # Verify the release exists and has the expected asset
-          ASSET_URL=$(gh release view "$TAG" --repo "${{ env.WEBRTC_REPO }}" --json assets -q '.assets[] | select(.name | startswith("libwebrtc-mpp-arm64")) | .url' 2>/dev/null || true)
-          if [ -z "$ASSET_URL" ]; then
-            echo "::error::Release $TAG exists but has no libwebrtc-mpp-arm64 asset. Rebuild libwebrtc with create_release=true."
+          # Verify the release has the expected asset
+          ASSET=$(gh release view "$TAG" --repo "${{ env.WEBRTC_REPO }}" --json assets -q '.assets[] | select(.name | startswith("libwebrtc-mpp-arm64")) | .name' 2>/dev/null || true)
+          if [ -z "$ASSET" ]; then
+            echo "::error::Release $TAG has no libwebrtc-mpp-arm64 asset. Rebuild libwebrtc with create_release=true."
             exit 1
           fi
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "asset_url=$ASSET_URL" >> "$GITHUB_OUTPUT"
-          echo "Found release $TAG with libwebrtc asset"
+          echo "Found release $TAG with asset: $ASSET"
 
   # ─────────────────────────────────────────────────────────────────────────
-  # Job 2: Apply patches and cross-compile
+  # Job 2: Apply patches, cross-compile, publish release
   # ─────────────────────────────────────────────────────────────────────────
   build:
     name: Cross-compile for aarch64
@@ -79,7 +84,9 @@ jobs:
           git clone https://github.com/livekit/rust-sdks.git /tmp/rust-sdks
           cd /tmp/rust-sdks
           git checkout "$SDK_COMMIT"
-          echo "LiveKit SDK at $(git rev-parse --short HEAD)"
+          SDK_SHA=$(git rev-parse --short HEAD)
+          echo "SDK_SHA=$SDK_SHA" >> "$GITHUB_ENV"
+          echo "LiveKit SDK at $SDK_SHA"
 
       - name: Apply Rockchip MPP patches
         run: |
@@ -89,11 +96,11 @@ jobs:
       - name: Verify patches applied
         run: |
           cd /tmp/rust-sdks
-          echo "--- build.rs changes ---"
+          echo "--- build.rs ---"
           git diff --stat -- webrtc-sys/build.rs
-          echo "--- video_encoder_factory.cpp changes ---"
+          echo "--- video_encoder_factory.cpp ---"
           git diff --stat -- webrtc-sys/src/video_encoder_factory.cpp
-          echo "--- video_decoder_factory.cpp changes ---"
+          echo "--- video_decoder_factory.cpp ---"
           git diff --stat -- webrtc-sys/src/video_decoder_factory.cpp
 
       - name: Download libwebrtc from release
@@ -110,8 +117,9 @@ jobs:
           mkdir -p /tmp/webrtc-lib/lib
           tar xzf /tmp/libwebrtc-mpp-arm64-*.tar.gz -C /tmp/webrtc-lib/lib/
           echo "libwebrtc.a size: $(du -h /tmp/webrtc-lib/lib/libwebrtc.a | cut -f1)"
-          echo "Build info:"
-          cat /tmp/webrtc-lib/lib/build-info.txt || true
+          cat /tmp/webrtc-lib/lib/build-info.txt 2>/dev/null || true
+
+          echo "WEBRTC_TAG=$TAG" >> "$GITHUB_ENV"
 
       - name: Install aarch64 cross-compile toolchain
         run: |
@@ -139,7 +147,7 @@ jobs:
           PKG_CONFIG_ALLOW_CROSS = "1"
           TOML
 
-      - name: Cross-compile webrtc-sys
+      - name: Build example binaries
         env:
           LK_CUSTOM_WEBRTC: /tmp/webrtc-lib
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
@@ -147,20 +155,106 @@ jobs:
           AR_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ar
         working-directory: /tmp/rust-sdks
         run: |
-          cargo build \
-            --target aarch64-unknown-linux-gnu \
-            -p webrtc-sys \
-            2>&1 | tail -100
+          BUILD_WHAT="${{ github.event.inputs.build_examples || 'basic_room' }}"
 
-      - name: Verify Rockchip symbols in build output
-        run: |
-          BINARY_DIR="/tmp/rust-sdks/target/aarch64-unknown-linux-gnu/debug"
-          if [ -d "$BINARY_DIR" ]; then
-            echo "Checking for Rockchip symbols..."
-            find "$BINARY_DIR" -name '*.o' -exec \
-              aarch64-linux-gnu-nm {} \; 2>/dev/null \
-              | grep -i rockchip | head -20 || echo "No symbols found"
+          if [ "$BUILD_WHAT" = "all" ]; then
+            echo "Building all examples..."
+            cargo build \
+              --target aarch64-unknown-linux-gnu \
+              --release \
+              --examples \
+              2>&1 | tail -50
           else
-            echo "Build directory not found"
-            exit 1
+            echo "Building basic_room example..."
+            cargo build \
+              --target aarch64-unknown-linux-gnu \
+              --release \
+              --example basic_room \
+              2>&1 | tail -50
           fi
+
+      - name: Verify Rockchip symbols
+        run: |
+          BINARY_DIR="/tmp/rust-sdks/target/aarch64-unknown-linux-gnu/release"
+          echo "Checking for Rockchip symbols in release binaries..."
+          for bin in "$BINARY_DIR/examples/"*; do
+            if [ -f "$bin" ] && file "$bin" | grep -q ELF; then
+              count=$(aarch64-linux-gnu-nm "$bin" 2>/dev/null | grep -ci rockchip || true)
+              echo "  $(basename $bin): $count Rockchip symbols"
+            fi
+          done
+
+      - name: Package release tarball
+        run: |
+          mkdir -p /tmp/release-staging/bin
+          BINARY_DIR="/tmp/rust-sdks/target/aarch64-unknown-linux-gnu/release"
+
+          # Copy example binaries
+          for bin in "$BINARY_DIR/examples/"*; do
+            if [ -f "$bin" ] && file "$bin" | grep -q ELF; then
+              cp "$bin" /tmp/release-staging/bin/
+              echo "Packed: $(basename $bin) ($(du -h "$bin" | cut -f1))"
+            fi
+          done
+
+          # Copy libwebrtc.a so users can build more examples locally
+          mkdir -p /tmp/release-staging/lib
+          cp /tmp/webrtc-lib/lib/libwebrtc.a /tmp/release-staging/lib/
+
+          # Write build metadata
+          cat > /tmp/release-staging/build-info.txt <<INFO
+          livekit-sdk-commit=${{ env.SDK_SHA }}
+          webrtc-release=${{ env.WEBRTC_TAG }}
+          patches-commit=$(git rev-parse --short HEAD)
+          date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          target=aarch64-unknown-linux-gnu
+          INFO
+
+          # Include the patches for reference
+          cp -r patches/ /tmp/release-staging/patches/
+
+          TARBALL="livekit-rockchip-arm64-${{ env.SDK_SHA }}.tar.gz"
+          tar czf "/tmp/$TARBALL" -C /tmp/release-staging .
+          echo "TARBALL=$TARBALL" >> "$GITHUB_ENV"
+          echo "TARBALL_PATH=/tmp/$TARBALL" >> "$GITHUB_ENV"
+          ls -lh "/tmp/$TARBALL"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: livekit-rockchip-arm64
+          path: ${{ env.TARBALL_PATH }}
+          retention-days: 30
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v$(date -u +%Y%m%d)-sdk-${{ env.SDK_SHA }}"
+          gh release create "$TAG" \
+            "${{ env.TARBALL_PATH }}" \
+            --title "LiveKit + Rockchip MPP ($TAG)" \
+            --notes "$(cat <<EOF
+          Pre-built LiveKit SDK binaries with RK3588 MPP hardware H.264 encoder/decoder.
+
+          **LiveKit SDK commit:** \`${{ env.SDK_SHA }}\`
+          **libwebrtc release:** \`${{ env.WEBRTC_TAG }}\` (from webrtc-rockchip-mpp)
+          **Target:** aarch64 (RK3588)
+
+          ## Contents
+          - \`bin/\` — Pre-built example binaries (basic_room, etc.)
+          - \`lib/libwebrtc.a\` — The custom libwebrtc for building more examples
+          - \`patches/\` — The SDK patches used for this build
+
+          ## Quick start on RK3588
+          \`\`\`bash
+          tar xzf ${{ env.TARBALL }} -C ~/livekit-rockchip/
+          cd ~/livekit-rockchip/bin
+          LIVEKIT_URL=wss://your-server.livekit.cloud \\
+          LIVEKIT_API_KEY=your_key \\
+          LIVEKIT_API_SECRET=your_secret \\
+            ./basic_room
+          \`\`\`
+          EOF
+          )"
+          echo "Created release: $TAG"
