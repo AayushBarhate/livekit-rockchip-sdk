@@ -1,0 +1,26 @@
+diff --git a/webrtc-sys/src/video_decoder_factory.cpp b/webrtc-sys/src/video_decoder_factory.cpp
+index 94ba7638..3c3dcd33 100644
+--- a/webrtc-sys/src/video_decoder_factory.cpp
++++ b/webrtc-sys/src/video_decoder_factory.cpp
+@@ -39,6 +39,10 @@
+ #include "nvidia/nvidia_decoder_factory.h"
+ #endif
+ 
++#if defined(USE_ROCKCHIP_MPP_VIDEO_CODEC)
++#include "modules/video_coding/codecs/mpp/rockchip_video_decoder_factory.h"
++#endif
++
+ namespace livekit_ffi {
+ 
+ VideoDecoderFactory::VideoDecoderFactory() {
+@@ -55,6 +59,10 @@ VideoDecoderFactory::VideoDecoderFactory() {
+     factories_.push_back(std::make_unique<webrtc::NvidiaVideoDecoderFactory>());
+   }
+ #endif
++
++#if defined(USE_ROCKCHIP_MPP_VIDEO_CODEC)
++  factories_.push_back(std::make_unique<webrtc::RockchipVideoDecoderFactory>());
++#endif
+ }
+ 
+ std::vector<webrtc::SdpVideoFormat> VideoDecoderFactory::GetSupportedFormats()

@@ -1,0 +1,26 @@
+diff --git a/webrtc-sys/src/video_encoder_factory.cpp b/webrtc-sys/src/video_encoder_factory.cpp
+index 7435760b..1e0da0c3 100644
+--- a/webrtc-sys/src/video_encoder_factory.cpp
++++ b/webrtc-sys/src/video_encoder_factory.cpp
+@@ -45,6 +45,10 @@
+ #include "vaapi/vaapi_encoder_factory.h"
+ #endif
+ 
++#if defined(USE_ROCKCHIP_MPP_VIDEO_CODEC)
++#include "modules/video_coding/codecs/mpp/rockchip_video_encoder_factory.h"
++#endif
++
+ namespace livekit_ffi {
+ 
+ using Factory = webrtc::VideoEncoderFactoryTemplate<
+@@ -81,6 +85,10 @@ VideoEncoderFactory::InternalFactory::InternalFactory() {
+ #if defined(USE_NVIDIA_VIDEO_CODEC)
+   }
+ #endif
++
++#if defined(USE_ROCKCHIP_MPP_VIDEO_CODEC)
++  factories_.push_back(std::make_unique<webrtc::RockchipVideoEncoderFactory>());
++#endif
+ }
+ 
+ std::vector<webrtc::SdpVideoFormat>

@@ -1,0 +1,29 @@
+# Compiled object files
+*.o
+*.obj
+
+# Static and shared libraries
+*.a
+*.so
+*.dylib
+
+# Rust build artifacts
+target/
+
+# Cloned LiveKit SDK (working copy, not part of this repo)
+rust-sdks/
+
+# Build artifacts
+build/
+out/
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
