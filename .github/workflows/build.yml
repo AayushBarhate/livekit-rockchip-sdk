@@ -1,47 +1,117 @@
 name: Build LiveKit SDK with Rockchip MPP
 
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
+    inputs:
+      webrtc_release_tag:
+        description: "Release tag from webrtc-rockchip-mpp (leave empty for latest)"
+        required: false
+        default: ""
+        type: string
+      livekit_sdk_commit:
+        description: "LiveKit rust-sdks commit to build against"
+        required: false
+        default: "9e635aa6"
+        type: string
 
 env:
-  LIVEKIT_SDK_COMMIT: "9e635aa6"
+  WEBRTC_REPO: "AayushBarhate/webrtc-rockchip-mpp"
   RUST_VERSION: "stable"
 
 jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 1: Check that a libwebrtc release exists before doing anything
+  # ─────────────────────────────────────────────────────────────────────────
+  check-release:
+    name: Check for libwebrtc release
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.resolve.outputs.tag }}
+      asset_url: ${{ steps.resolve.outputs.asset_url }}
+
+    steps:
+      - name: Resolve libwebrtc release
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          INPUT_TAG="${{ github.event.inputs.webrtc_release_tag }}"
+
+          if [ -n "$INPUT_TAG" ]; then
+            echo "Using specified release tag: $INPUT_TAG"
+            TAG="$INPUT_TAG"
+          else
+            echo "Fetching latest release from ${{ env.WEBRTC_REPO }}..."
+            TAG=$(gh release view --repo "${{ env.WEBRTC_REPO }}" --json tagName -q '.tagName' 2>/dev/null || true)
+            if [ -z "$TAG" ]; then
+              echo "::error::No releases found in ${{ env.WEBRTC_REPO }}. Run the libwebrtc build workflow first."
+              exit 1
+            fi
+            echo "Latest release: $TAG"
+          fi
+
+          # Verify the release exists and has the expected asset
+          ASSET_URL=$(gh release view "$TAG" --repo "${{ env.WEBRTC_REPO }}" --json assets -q '.assets[] | select(.name | startswith("libwebrtc-mpp-arm64")) | .url' 2>/dev/null || true)
+          if [ -z "$ASSET_URL" ]; then
+            echo "::error::Release $TAG exists but has no libwebrtc-mpp-arm64 asset. Rebuild libwebrtc with create_release=true."
+            exit 1
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "asset_url=$ASSET_URL" >> "$GITHUB_OUTPUT"
+          echo "Found release $TAG with libwebrtc asset"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 2: Apply patches and cross-compile
+  # ─────────────────────────────────────────────────────────────────────────
   build:
     name: Cross-compile for aarch64
     runs-on: ubuntu-latest
+    needs: check-release
 
     steps:
       - name: Checkout this repo
         uses: actions/checkout@v4
 
-      - name: Clone LiveKit rust-sdks at pinned commit
+      - name: Clone LiveKit rust-sdks
         run: |
+          SDK_COMMIT="${{ github.event.inputs.livekit_sdk_commit || '9e635aa6' }}"
           git clone https://github.com/livekit/rust-sdks.git /tmp/rust-sdks
           cd /tmp/rust-sdks
-          git checkout ${{ env.LIVEKIT_SDK_COMMIT }}
-          echo "LiveKit SDK checked out at $(git rev-parse --short HEAD)"
+          git checkout "$SDK_COMMIT"
+          echo "LiveKit SDK at $(git rev-parse --short HEAD)"
 
       - name: Apply Rockchip MPP patches
         run: |
           chmod +x ./apply_patches.sh
           ./apply_patches.sh /tmp/rust-sdks
 
-      - name: Verify patches were applied
+      - name: Verify patches applied
         run: |
-          echo "--- build.rs diff ---"
           cd /tmp/rust-sdks
-          git diff -- webrtc-sys/build.rs
-          echo ""
-          echo "--- video_encoder_factory.cpp diff ---"
-          git diff -- webrtc-sys/src/video_encoder_factory.cpp
-          echo ""
-          echo "--- video_decoder_factory.cpp diff ---"
-          git diff -- webrtc-sys/src/video_decoder_factory.cpp
+          echo "--- build.rs changes ---"
+          git diff --stat -- webrtc-sys/build.rs
+          echo "--- video_encoder_factory.cpp changes ---"
+          git diff --stat -- webrtc-sys/src/video_encoder_factory.cpp
+          echo "--- video_decoder_factory.cpp changes ---"
+          git diff --stat -- webrtc-sys/src/video_decoder_factory.cpp
+
+      - name: Download libwebrtc from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.check-release.outputs.release_tag }}"
+          echo "Downloading libwebrtc from release $TAG..."
+          gh release download "$TAG" \
+            --repo "${{ env.WEBRTC_REPO }}" \
+            --pattern 'libwebrtc-mpp-arm64-*.tar.gz' \
+            --dir /tmp
+
+          mkdir -p /tmp/webrtc-lib/lib
+          tar xzf /tmp/libwebrtc-mpp-arm64-*.tar.gz -C /tmp/webrtc-lib/lib/
+          echo "libwebrtc.a size: $(du -h /tmp/webrtc-lib/lib/libwebrtc.a | cut -f1)"
+          echo "Build info:"
+          cat /tmp/webrtc-lib/lib/build-info.txt || true
 
       - name: Install aarch64 cross-compile toolchain
         run: |
@@ -58,39 +128,6 @@ jobs:
         with:
           targets: aarch64-unknown-linux-gnu
 
-      - name: Setup pkg-config for cross compilation
-        run: |
-          # Create a pkg-config wrapper that points to the aarch64 sysroot
-          sudo mkdir -p /usr/aarch64-linux-gnu/lib/pkgconfig
-          cat > /tmp/aarch64-pkg-config <<'WRAPPER'
-          #!/bin/sh
-          export PKG_CONFIG_DIR=
-          export PKG_CONFIG_LIBDIR=/usr/aarch64-linux-gnu/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig
-          export PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu
-          exec pkg-config "$@"
-          WRAPPER
-          chmod +x /tmp/aarch64-pkg-config
-
-      - name: Download pre-built libwebrtc.a
-        id: webrtc
-        run: |
-          # NOTE: In a real setup, this step would download the pre-built
-          # libwebrtc.a artifact from the webrtc-rockchip-mpp repository.
-          #
-          # For now, we create a placeholder directory structure so the build
-          # system can find the expected paths. The actual library must be
-          # provided via a release artifact or a separate build step.
-          #
-          # To use a real artifact, replace this block with:
-          #   gh release download --repo user/webrtc-rockchip-mpp \
-          #     --pattern 'webrtc-mpp-aarch64-*.tar.gz' --dir /tmp
-          #   tar xzf /tmp/webrtc-mpp-aarch64-*.tar.gz -C /tmp/webrtc-artifacts
-          #   echo "WEBRTC_DIR=/tmp/webrtc-artifacts" >> "$GITHUB_OUTPUT"
-
-          mkdir -p /tmp/webrtc-artifacts/lib /tmp/webrtc-artifacts/include
-          echo "WEBRTC_DIR=/tmp/webrtc-artifacts" >> "$GITHUB_OUTPUT"
-          echo "::warning::Using placeholder libwebrtc.a -- link step will fail without real artifact"
-
       - name: Configure Cargo for cross compilation
         run: |
           mkdir -p /tmp/rust-sdks/.cargo
@@ -103,13 +140,11 @@ jobs:
           TOML
 
       - name: Cross-compile webrtc-sys
-        continue-on-error: true
         env:
-          LK_CUSTOM_WEBRTC: ${{ steps.webrtc.outputs.WEBRTC_DIR }}
+          LK_CUSTOM_WEBRTC: /tmp/webrtc-lib
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
           CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
           AR_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ar
-          PKG_CONFIG_aarch64_unknown_linux_gnu: /tmp/aarch64-pkg-config
         working-directory: /tmp/rust-sdks
         run: |
           cargo build \
@@ -117,17 +152,15 @@ jobs:
             -p webrtc-sys \
             2>&1 | tail -100
 
-      - name: Verify Rockchip symbols (if build succeeded)
-        continue-on-error: true
+      - name: Verify Rockchip symbols in build output
         run: |
           BINARY_DIR="/tmp/rust-sdks/target/aarch64-unknown-linux-gnu/debug"
           if [ -d "$BINARY_DIR" ]; then
-            echo "Checking for Rockchip symbols in build output..."
-            find "$BINARY_DIR" -name '*.o' -o -name '*.a' 2>/dev/null | head -20
-            # Look for Rockchip factory symbols
+            echo "Checking for Rockchip symbols..."
             find "$BINARY_DIR" -name '*.o' -exec \
               aarch64-linux-gnu-nm {} \; 2>/dev/null \
-              | grep -i rockchip || echo "No Rockchip symbols found (expected if using placeholder libwebrtc.a)"
+              | grep -i rockchip | head -20 || echo "No symbols found"
           else
-            echo "Build directory not found -- build likely failed (expected without real libwebrtc.a)"
+            echo "Build directory not found"
+            exit 1
           fi
