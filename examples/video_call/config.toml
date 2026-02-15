@@ -1,0 +1,61 @@
+# video_call configuration
+# Copy this file to config.toml and edit to match your setup.
+# CLI arguments and environment variables override these values.
+
+[livekit]
+# LiveKit server URL (or set LIVEKIT_URL env var)
+url = "wss://your-livekit-server.livekit.cloud"
+# API key (or set LIVEKIT_API_KEY env var)
+api_key = "your-api-key"
+# API secret (or set LIVEKIT_API_SECRET env var)
+api_secret = "your-api-secret"
+# Room name to join
+room = "rk3588-call"
+# Your display identity
+identity = "rk3588-cam"
+
+[video]
+# Camera device index (run with --list-devices to see available cameras)
+camera_index = 0
+# Video width
+width = 1280
+# Video height
+height = 720
+# Target framerate
+fps = 30
+# Video codec: "h264", "vp8", "vp9", "av1", "h265"
+codec = "h264"
+# Max video bitrate in bps
+max_bitrate = 2500000
+# Enable simulcast (multiple quality layers)
+simulcast = false
+
+[audio]
+# Microphone device name substring (run with --list-devices to see names)
+# Leave empty or omit for system default
+input_device = ""
+# Speaker device name substring
+# Leave empty or omit for system default
+output_device = ""
+# Audio sample rate in Hz
+sample_rate = 48000
+# Number of capture channels (1 = mono)
+channels = 1
+# Which channel index to capture from a multi-channel mic (0-based)
+channel_index = 0
+# Enable echo cancellation
+echo_cancellation = true
+# Enable noise suppression
+noise_suppression = true
+# Enable automatic gain control
+auto_gain_control = true
+# Playback volume (0.0 to 1.0)
+volume = 1.0
+
+[features]
+# Disable camera (audio-only mode)
+no_camera = false
+# Disable microphone (video-only mode)
+no_microphone = false
+# Disable speaker playback
+no_playback = false

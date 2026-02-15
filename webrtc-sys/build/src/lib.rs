@@ -29,7 +29,7 @@ use reqwest::StatusCode;
 
 pub const SCRATH_PATH: &str = "livekit_webrtc";
 pub const WEBRTC_TAG: &str = "webrtc-0001d84-2";
-pub const ROCKCHIP_WEBRTC_TAG: &str = "v20260213-a519220";
+pub const ROCKCHIP_WEBRTC_TAG: &str = "v20260215-d66aff3";
 pub const IGNORE_DEFINES: [&str; 2] = ["CR_CLANG_REVISION", "CR_XCODE_VERSION"];
 
 pub fn target_os() -> String {
