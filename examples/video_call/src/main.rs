@@ -942,14 +942,12 @@ async fn main() -> Result<()> {
             let (data_y, data_u, data_v) = frame.buffer.data_mut();
 
             if frame_count < 3 {
-                let nonzero = src_bytes.iter().filter(|&&b| b != 0).count();
                 info!(
-                    "Frame {}: {} bytes (expected RGB={}), non-zero={}, first 16={:?}",
+                    "Frame {}: {} bytes (expected RGB={}), first 4={:?}",
                     frame_count,
                     src_bytes.len(),
                     w as usize * h as usize * 3,
-                    nonzero,
-                    &src_bytes[..std::cmp::min(16, src_bytes.len())]
+                    &src_bytes[..std::cmp::min(4, src_bytes.len())]
                 );
             }
 
@@ -990,6 +988,16 @@ async fn main() -> Result<()> {
                     warn!("MJPEG decode failed, skipping frame");
                     continue;
                 }
+            }
+
+            if frame_count < 3 {
+                let y_nonzero = data_y.iter().filter(|&&b| b != 0).count();
+                info!(
+                    "I420 after decode: Y non-zero={}/{}, first Y={:?}",
+                    y_nonzero,
+                    data_y.len(),
+                    &data_y[..std::cmp::min(16, data_y.len())]
+                );
             }
 
             frame.timestamp_us = start.elapsed().as_micros() as i64;
