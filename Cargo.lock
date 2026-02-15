@@ -3256,7 +3256,7 @@ dependencies = [
 
 [[package]]
 name = "libwebrtc"
-version = "0.3.25"
+version = "0.3.26"
 dependencies = [
  "cxx",
  "env_logger 0.11.8",
@@ -3325,7 +3325,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "livekit"
-version = "0.7.31"
+version = "0.7.32"
 dependencies = [
  "anyhow",
  "bmrng",
@@ -6778,6 +6778,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
+name = "video_call"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "env_logger 0.11.8",
+ "futures",
+ "image 0.24.9",
+ "livekit",
+ "livekit-api",
+ "log",
+ "nokhwa",
+ "tokio",
+ "yuv-sys",
+]
+
+[[package]]
 name = "waker-fn"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7073,7 +7090,7 @@ dependencies = [
 
 [[package]]
 name = "webrtc-sys"
-version = "0.3.22"
+version = "0.3.23"
 dependencies = [
  "cc",
  "cxx",
@@ -7087,7 +7104,7 @@ dependencies = [
 
 [[package]]
 name = "webrtc-sys-build"
-version = "0.3.13"
+version = "0.3.14"
 dependencies = [
  "anyhow",
  "fs2",

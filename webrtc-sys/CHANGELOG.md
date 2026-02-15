@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.23](https://github.com/AayushBarhate/livekit-rockchip-sdk/compare/rust-sdks/webrtc-sys@0.3.22...rust-sdks/webrtc-sys@0.3.23) - 2026-02-15
+
+### Other
+
+- Rockchip MPP fork: patched LiveKit rust-sdks for RK3588
+
 ## [0.3.22](https://github.com/livekit/rust-sdks/compare/rust-sdks/webrtc-sys@0.3.21...rust-sdks/webrtc-sys@0.3.22) - 2026-02-09
 
 ### Fixed
