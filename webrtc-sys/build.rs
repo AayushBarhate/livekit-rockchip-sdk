@@ -240,9 +240,16 @@ fn main() {
                 }
             }
 
+            // RK3588 MPP hardware video codec (ARM64 only)
+            if arm {
+                println!("cargo:rustc-link-lib=rockchip_mpp");
+                builder.flag("-DUSE_ROCKCHIP_MPP_VIDEO_CODEC=1");
+            }
+
             builder
                 .flag("-Wno-changes-meaning")
                 .flag("-Wno-deprecated-declarations")
+                .flag("-fpermissive")
                 .flag("-std=c++20");
         }
         "macos" => {

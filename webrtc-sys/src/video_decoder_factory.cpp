@@ -39,6 +39,10 @@
 #include "nvidia/nvidia_decoder_factory.h"
 #endif
 
+#if defined(USE_ROCKCHIP_MPP_VIDEO_CODEC)
+#include "modules/video_coding/codecs/mpp/rockchip_video_decoder_factory.h"
+#endif
+
 namespace livekit_ffi {
 
 VideoDecoderFactory::VideoDecoderFactory() {
@@ -54,6 +58,10 @@ VideoDecoderFactory::VideoDecoderFactory() {
   if (webrtc::NvidiaVideoDecoderFactory::IsSupported()) {
     factories_.push_back(std::make_unique<webrtc::NvidiaVideoDecoderFactory>());
   }
+#endif
+
+#if defined(USE_ROCKCHIP_MPP_VIDEO_CODEC)
+  factories_.push_back(std::make_unique<webrtc::RockchipVideoDecoderFactory>());
 #endif
 }
 
@@ -99,6 +107,26 @@ VideoDecoderFactory::CodecSupport VideoDecoderFactory::QueryCodecSupport(
 
 std::unique_ptr<webrtc::VideoDecoder> VideoDecoderFactory::Create(
     const webrtc::Environment& env, const webrtc::SdpVideoFormat& format) {
+#if defined(USE_ROCKCHIP_MPP_VIDEO_CODEC)
+  // Force Rockchip MPP hardware decoder for all H.264.
+  // WebRTC's duplicate codec filtering may hide the Rockchip factory's formats,
+  // so we explicitly route H.264 to it before the generic factory loop.
+  if (absl::EqualsIgnoreCase(format.name, cricket::kH264CodecName)) {
+    RTC_LOG(LS_INFO) << "Routing H.264 to Rockchip MPP decoder";
+    for (const auto& factory : factories_) {
+      auto* rockchip = dynamic_cast<webrtc::RockchipVideoDecoderFactory*>(factory.get());
+      if (rockchip) {
+        auto decoder = rockchip->Create(env, format);
+        if (decoder) {
+          RTC_LOG(LS_INFO) << "Created Rockchip MPP H.264 decoder";
+          return decoder;
+        }
+        RTC_LOG(LS_WARNING) << "Rockchip factory returned null, falling back";
+      }
+    }
+  }
+#endif
+
   for (const auto& factory : factories_) {
     for (const auto& supported_format : factory->GetSupportedFormats()) {
       if (supported_format.IsSameCodec(format))

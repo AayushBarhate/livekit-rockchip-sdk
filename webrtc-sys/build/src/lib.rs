@@ -29,6 +29,7 @@ use reqwest::StatusCode;
 
 pub const SCRATH_PATH: &str = "livekit_webrtc";
 pub const WEBRTC_TAG: &str = "webrtc-0001d84-2";
+pub const ROCKCHIP_WEBRTC_TAG: &str = "v20260213-a519220";
 pub const IGNORE_DEFINES: [&str; 2] = ["CR_CLANG_REVISION", "CR_XCODE_VERSION"];
 
 pub fn target_os() -> String {
@@ -99,10 +100,18 @@ pub fn prebuilt_dir() -> path::PathBuf {
 }
 
 pub fn download_url() -> String {
+    let triple = webrtc_triple();
+    if target_os() == "linux" && target_arch() == "arm64" {
+        return format!(
+            "https://github.com/AayushBarhate/webrtc-rockchip-mpp/releases/download/{}/webrtc-{}.zip",
+            ROCKCHIP_WEBRTC_TAG,
+            triple
+        );
+    }
     format!(
         "https://github.com/livekit/rust-sdks/releases/download/{}/{}.zip",
         WEBRTC_TAG,
-        format!("webrtc-{}", webrtc_triple())
+        format!("webrtc-{}", triple)
     )
 }
 
