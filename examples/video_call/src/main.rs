@@ -854,19 +854,13 @@ async fn main() -> Result<()> {
     if !no_camera {
         info!("Opening camera index {}...", cam_index);
         let index = CameraIndex::Index(cam_index);
-        let requested =
-            RequestedFormat::new::<RgbFormat>(RequestedFormatType::AbsoluteHighestFrameRate);
-        let mut camera = Camera::new(index, requested)?;
-
-        // Try MJPEG at the requested resolution
         let fmt = CameraFormat::new(
             Resolution::new(vid_width, vid_height),
             FrameFormat::MJPEG,
             vid_fps,
         );
-        let _ = camera.set_camera_requset(RequestedFormat::new::<RgbFormat>(
-            RequestedFormatType::Exact(fmt),
-        ));
+        let requested = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Exact(fmt));
+        let mut camera = Camera::new(index, requested)?;
         camera.open_stream()?;
 
         let cam_fmt = camera.camera_format();
