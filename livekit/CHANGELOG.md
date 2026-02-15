@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.32](https://github.com/AayushBarhate/livekit-rockchip-sdk/compare/rust-sdks/livekit@0.7.31...rust-sdks/livekit@0.7.32) - 2026-02-15
+
+### Other
+
+- set the simulcast codec & layers ([#891](https://github.com/AayushBarhate/livekit-rockchip-sdk/pull/891))
+
 ## [0.7.31](https://github.com/livekit/rust-sdks/compare/rust-sdks/livekit@0.7.30...rust-sdks/livekit@0.7.31) - 2026-02-10
 
 ### Other
