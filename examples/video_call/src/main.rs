@@ -935,7 +935,7 @@ async fn main() -> Result<()> {
             };
 
             let src = frame_buf.buffer();
-            let src_bytes = src.as_ref();
+            let src_bytes: &[u8] = src.as_ref();
             let (stride_y, stride_u, stride_v) = frame.buffer.strides();
             let (data_y, data_u, data_v) = frame.buffer.data_mut();
 
