@@ -859,8 +859,16 @@ async fn main() -> Result<()> {
             FrameFormat::MJPEG,
             vid_fps,
         );
-        let requested = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Exact(fmt));
-        let mut camera = Camera::new(index, requested)?;
+        let requested = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(fmt));
+        let mut camera = match Camera::new(index.clone(), requested) {
+            Ok(c) => c,
+            Err(e) => {
+                warn!("MJPEG request failed ({}), trying highest framerate...", e);
+                let fallback =
+                    RequestedFormat::new::<RgbFormat>(RequestedFormatType::AbsoluteHighestFrameRate);
+                Camera::new(index, fallback)?
+            }
+        };
         camera.open_stream()?;
 
         let cam_fmt = camera.camera_format();
