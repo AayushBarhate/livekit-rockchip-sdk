@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.14](https://github.com/AayushBarhate/livekit-rockchip-sdk/compare/rust-sdks/webrtc-sys-build@0.3.13...rust-sdks/webrtc-sys-build@0.3.14) - 2026-02-15
+
+### Other
+
+- Rockchip MPP fork: patched LiveKit rust-sdks for RK3588
+
 ## [0.3.13](https://github.com/livekit/rust-sdks/compare/rust-sdks/webrtc-sys-build@0.3.12...rust-sdks/webrtc-sys-build@0.3.13) - 2026-02-09
 
 ### Other
