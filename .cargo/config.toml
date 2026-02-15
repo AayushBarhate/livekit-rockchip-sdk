@@ -18,3 +18,9 @@ rustflags = ["-C", "link-args=-ObjC"]
 
 [target.aarch64-unknown-linux-gnu]
 linker = "aarch64-linux-gnu-gcc"
+
+[env]
+# Required for cross-compiling to aarch64: allow pkg-config to run
+# even when the host and target differ. Libraries (glib, alsa, etc.)
+# will be resolved at runtime on the target device.
+PKG_CONFIG_ALLOW_CROSS = "1"
