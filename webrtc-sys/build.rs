@@ -169,8 +169,28 @@ fn main() {
             // In order to avoid any ABI mismatches we use the sysroot's headers.
             add_gio_headers(&mut builder);
 
-            for lib_name in ["glib-2.0", "gobject-2.0", "gio-2.0"] {
-                pkg_config::probe_library(lib_name).unwrap();
+            // When cross-compiling for ARM64, skip pkg-config probing for glib
+            // (the WebRTC sysroot already has headers, and glib will be on the target).
+            // For native builds, use pkg-config as usual.
+            let host_triple = env::var("HOST").unwrap_or_default();
+            let target_triple = env::var("TARGET").unwrap_or_default();
+            let is_cross = host_triple != target_triple;
+            if !is_cross {
+                for lib_name in ["glib-2.0", "gobject-2.0", "gio-2.0"] {
+                    pkg_config::probe_library(lib_name).unwrap();
+                }
+            } else {
+                // For cross-compilation: add gio/glib include paths from the WebRTC sysroot
+                // and link glib/gobject/gio dynamically (they'll be resolved at runtime on target)
+                let webrtc_dir = webrtc_sys_build::webrtc_dir();
+                let sysroot = webrtc_dir.join("include/build/linux/debian_bullseye_arm64-sysroot");
+                let gio_path = sysroot.join("usr/include/gio-unix-2.0");
+                if gio_path.exists() {
+                    builder.include(&gio_path);
+                }
+                println!("cargo:rustc-link-lib=dylib=glib-2.0");
+                println!("cargo:rustc-link-lib=dylib=gobject-2.0");
+                println!("cargo:rustc-link-lib=dylib=gio-2.0");
             }
 
             add_lazy_load_so(
