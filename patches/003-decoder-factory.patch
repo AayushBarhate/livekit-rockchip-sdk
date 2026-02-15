@@ -24,8 +24,8 @@ index 94ba7638..3c3dcd33 100644
  }
 
  std::vector<webrtc::SdpVideoFormat> VideoDecoderFactory::GetSupportedFormats()
-@@ -107,6 +115,24 @@ std::vector<webrtc::SdpVideoFormat> VideoDecoderFactory::GetSupportedFormats()
-
+@@ -107,6 +115,26 @@ std::vector<webrtc::SdpVideoFormat> VideoDecoderFactory::GetSupportedFormats()
+ 
  std::unique_ptr<webrtc::VideoDecoder> VideoDecoderFactory::Create(
      const webrtc::Environment& env, const webrtc::SdpVideoFormat& format) {
 +#if defined(USE_ROCKCHIP_MPP_VIDEO_CODEC)
