@@ -941,6 +941,18 @@ async fn main() -> Result<()> {
             let (stride_y, stride_u, stride_v) = frame.buffer.strides();
             let (data_y, data_u, data_v) = frame.buffer.data_mut();
 
+            if frame_count < 3 {
+                let nonzero = src_bytes.iter().filter(|&&b| b != 0).count();
+                info!(
+                    "Frame {}: {} bytes (expected RGB={}), non-zero={}, first 16={:?}",
+                    frame_count,
+                    src_bytes.len(),
+                    w as usize * h as usize * 3,
+                    nonzero,
+                    &src_bytes[..std::cmp::min(16, src_bytes.len())]
+                );
+            }
+
             if src_bytes.len() == (w as usize * h as usize * 3) {
                 unsafe {
                     yuv_sys::rs_RGB24ToI420(
